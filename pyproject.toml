@@ -1,0 +1,7 @@
+[project]
+name = "da6401-assignment-3"
+version = "0.1.0"
+description = "DA6401 Assignment 3"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = []
