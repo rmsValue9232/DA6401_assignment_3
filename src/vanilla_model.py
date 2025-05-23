@@ -37,13 +37,12 @@ class Encoder(nn.Module):
 
         packed = nn.utils.rnn.pack_padded_sequence(embedded, src_len.cpu(), batch_first=True, enforce_sorted=False)
         
-        if self.unit == 'rnn':
-            output, hidden = self.rnn(packed)
-        elif self.unit == 'gru':
-            output, hidden = self.rnn(packed)
-        elif self.unit == 'lstm':
+        if self.unit == 'lstm':
             output, (hidden, cell) = self.rnn(packed)
-        return hidden
+            return hidden, cell
+        else:
+            output, hidden = self.rnn(packed)
+            return hidden
 
 class Decoder(nn.Module):
     """Decoder for the Seq2Seq model."""
@@ -75,14 +74,14 @@ class Decoder(nn.Module):
 
         self.fc_out = nn.Linear(hidden_dim, target_vocab_size)
 
-    def forward(self, tgt_input: torch.Tensor, hidden: torch.Tensor) -> torch.Tensor:
+    def forward(self, tgt_input: torch.Tensor, hidden) -> torch.Tensor:
         embedded = self.embedding(tgt_input)
-        if self.unit == 'rnn':
+        if self.unit == 'lstm':
+            h, c = hidden              # unpack
+            output, (h, c) = self.rnn(embedded, (h, c))
+            hidden = (h, c)            # repack for next step
+        else:
             output, hidden = self.rnn(embedded, hidden)
-        elif self.unit == 'gru':
-            output, hidden = self.rnn(embedded, hidden)
-        elif self.unit == 'lstm':
-            output, (hidden, cell) = self.rnn(embedded, hidden)
         
         prediction = self.fc_out(output)
         return prediction

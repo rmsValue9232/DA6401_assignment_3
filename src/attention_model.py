@@ -37,15 +37,14 @@ class Encoder(nn.Module):
 
         packed = nn.utils.rnn.pack_padded_sequence(embedded, src_len.cpu(), batch_first=True, enforce_sorted=False)
         
-        if self.unit == 'rnn':
-            output, hidden = self.rnn(packed)
-        elif self.unit == 'gru':
-            output, hidden = self.rnn(packed)
-        elif self.unit == 'lstm':
+        if self.unit == 'lstm':
             output, (hidden, cell) = self.rnn(packed)
-        
-        outputs, _ = nn.utils.rnn.pad_packed_sequence(output, batch_first=True)
-        return outputs, hidden # (batch_size, seq_len, hidden_dim), (num_layers, batch_size, hidden_dim)
+            outputs, _ = nn.utils.rnn.pad_packed_sequence(output, batch_first=True)
+            return outputs, (hidden, cell)
+        else:
+            output, hidden = self.rnn(packed)
+            outputs, _ = nn.utils.rnn.pad_packed_sequence(output, batch_first=True)
+            return outputs, hidden
 
 class DotAttention(nn.Module):
     """Dot-product attention mechanism."""
@@ -106,12 +105,12 @@ class Decoder(nn.Module):
     def forward(self, tgt: torch.Tensor, hidden: torch.Tensor, encoder_outputs: torch.Tensor, mask = None):
         embedded = self.embedding(tgt)
 
-        if self.unit == 'rnn':
+        if self.unit == 'lstm':
+            h, c = hidden              # unpack
+            output, (h, c) = self.rnn(embedded, (h, c))
+            hidden = (h, c)            # repack for next step
+        else:
             output, hidden = self.rnn(embedded, hidden)
-        elif self.unit == 'gru':
-            output, hidden = self.rnn(embedded, hidden)
-        elif self.unit == 'lstm':
-            output, (hidden, cell) = self.rnn(embedded, hidden)
         
 
         logits = []
